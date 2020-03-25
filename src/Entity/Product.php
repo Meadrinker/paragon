@@ -8,11 +8,12 @@ use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
 use Doctrine\ORM\Mapping\JoinColumn;
 use Doctrine\ORM\Mapping\ManyToOne;
+use Doctrine\ORM\Mapping\OneToMany;
 use Doctrine\ORM\Mapping\OneToOne;
 use Doctrine\ORM\Mapping\Table;
 
 /**
- * @Entity
+ * @Entity(repositoryClass="App\Repository\ProductRepository")
  * @Table(name = "products")
  */
 class Product {
@@ -41,22 +42,23 @@ class Product {
     private $type;
 
     /**
-     * @Column(type="integer")
-     */
-    private $guarantee;
-
-    /**
      * @Column(type="string")
      */
-    private $image;
+    private $guarantee;
 
     /**
      * @Column(type="integer")
      */
     private $price;
 
+    /**
+     * @OneToMany(targetEntity="ProductImage", mappedBy="product", cascade={"persist"})
+     */
+    private $images;
+
     public function __construct() {
         $this->bill = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->images = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -142,22 +144,6 @@ class Product {
     /**
      * @return mixed
      */
-    public function getImage()
-    {
-        return $this->image;
-    }
-
-    /**
-     * @param mixed $image
-     */
-    public function setImage($image)
-    {
-        $this->image = $image;
-    }
-
-    /**
-     * @return mixed
-     */
     public function getPrice()
     {
         return $this->price;
@@ -169,6 +155,26 @@ class Product {
     public function setPrice($price)
     {
         $this->price = $price;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getImages()
+    {
+        return $this->images;
+    }
+
+    /**
+     * @param mixed $images
+     */
+    public function setImages($images)
+    {
+        $this->images = $images;
+    }
+
+    public function addImage($image) {
+        $this->images->add($image);
     }
     
 }

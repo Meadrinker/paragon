@@ -33,6 +33,11 @@ class Bill {
     /**
      * @Column(type="string")
      */
+    private $name;
+
+    /**
+     * @Column(type="string")
+     */
     private $date;
 
     /**
@@ -84,6 +89,22 @@ class Bill {
     public function setUser($user)
     {
         $this->user = $user;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getName()
+    {
+        return $this->name;
+    }
+
+    /**
+     * @param mixed $name
+     */
+    public function setName($name)
+    {
+        $this->name = $name;
     }
 
     /**

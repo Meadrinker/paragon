@@ -3,35 +3,25 @@
 namespace App\Controller;
 
 use App\Service\BillService;
+use App\Service\ProductService;
 use App\Validator\BillValidator;
+use App\Validator\ProductValidator;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use Symfony\Component\HttpFoundation\Request;
 
-class BillController extends AbstractFOSRestController {
+class ProductImageController extends AbstractFOSRestController {
 
     /**
      * Invest in investment
      *
      * GET Route annotation.
-     * @Rest\Get("/bills")
+     * @Rest\Get("/product_images")
      */
-    public function getBills(Request $request, BillService $billService) {
+    public function getProductImages(Request $request, ProductService $productService) {
         $userId = $request->get('id');
-        $bills = $billService->getBills($userId);
-        $view = $this->view($bills, 200);
-        return $this->handleView($view);
-    }
-
-    /**
-     * Invest in investment
-     *
-     * GET Route annotation.
-     * @Rest\Get("/bill/{id}")
-     */
-    public function getBill($id, BillService $billService) {
-        $bill = $billService->getBill($id);
-        $view = $this->view($bill, 200);
+        $products = $productService->getProducts($userId);
+        $view = $this->view($products, 200);
         return $this->handleView($view);
     }
 
@@ -39,10 +29,10 @@ class BillController extends AbstractFOSRestController {
      * Invest in investment
      *
      * POST Route annotation.
-     * @Rest\Delete("/bill/{id}")
+     * @Rest\Delete("/product_image/{id}")
      */
-    public function deleteBill($id, BillService $billService) {
-        $delete = $billService->deleteBill($id);
+    public function deleteProduct($id, ProductService $productService) {
+        $delete = $productService->deleteProduct($id);
         $view = $this->view($delete, 200);
 
         return $this->handleView($view);
@@ -52,22 +42,22 @@ class BillController extends AbstractFOSRestController {
      * Invest in investment
      *
      * POST Route annotation.
-     * @Rest\Post("/bill")
+     * @Rest\Post("/bill/{billId}/product")
      */
-    public function addBill(Request $request, BillService $billService) {
-//        \Doctrine\Common\Util\Debug::dump($request);
-//        die('lol');
+    public function addProduct($billId, Request $request, ProductService $productService) {
         $json = json_decode($request->request->get('data'), true);
+//        \Doctrine\Common\Util\Debug::dump($json['guarantee']);
+//        die('lol');
         $files = $request->files;
         $path = $this->getParameter('images_directory');
-        $validator = new BillValidator();
+        $validator = new ProductValidator();
         if (!$validator->valid($json, $files)) {
             $post['errors'] = $validator->getErrors();
             $view = $this->view($post, 400);
             return $this->handleView($view);
         }
-        $billService->addBill($json, $files, $path);
-        $view = $this->view(['message' => 'dodano nowy paragon'], 200);
+        $productService->addProduct($billId, $json, $files, $path);
+        $view = $this->view(['message' => 'dodano nowy product'], 200);
         return $this->handleView($view);
     }
 
@@ -75,21 +65,17 @@ class BillController extends AbstractFOSRestController {
      * Invest in investment
      *
      * POST Route annotation.
-     * @Rest\Post("/bill/{id}")
+     * @Rest\Post("/bill/{billId}/product/{productId}")
      */
-    public function updateBill($id, Request $request, BillService $billService) {
-//        \Doctrine\Common\Util\Debug::dump($array);
-//        die('lol');
+    public function updateProduct($id, Request $request, ProductService $productService) {
         $json = json_decode($request->request->get('data'), true);
-        $path = $this->getParameter('images_directory');
-        $files = $request->files;
-        $validator = new BillValidator();
-        if (!$validator->valid($json, $files)) {
+        $validator = new ProductValidator();
+        if (!$validator->validWithoutImage($json)) {
             $post['errors'] = $validator->getErrors();
             $view = $this->view($post, 400);
             return $this->handleView($view);
         }
-        $billService->updateBill($id, $json, $files, $path);
+        $productService->updateProduct($id, $json);
         $view = $this->view(['message' => 'zapisano zmiany w paragonie o id ' . $id], 200);
         return $this->handleView($view);
     }

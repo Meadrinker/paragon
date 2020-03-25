@@ -4,16 +4,20 @@ namespace App\Service;
 
 use App\Entity\Bill;
 use App\Entity\Product;
+use App\Entity\ProductImage;
 use App\Entity\User;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpFoundation\ParameterBag;
+use Symfony\Component\HttpFoundation\FileBag;
 
 class BillService {
 
     protected $em;
+    private $imageService;
 
-    public function __construct(EntityManagerInterface $em) {
+    public function __construct(EntityManagerInterface $em, BillImageService $imageService) {
         $this->em = $em;
+        $this->imageService = $imageService;
     }
 
     public function getBills($id) {
@@ -30,12 +34,19 @@ class BillService {
             $productEntity = $this->em->getRepository(Product::class)->findBy(['bill' => $billId]);
             foreach ($productEntity as $product) {
                 $bills[$bill->getId()][$product->getId()] = [
-                    'image' => $product->getImage(),
+//                    'image' => $product->getImages(),
                     'name' => $product->getName(),
                     'guarantee' => $product->getGuarantee(),
                     'type' => $product->getType(),
                     'price' => $product->getPrice()
                 ];
+                $productId = $product->getId();
+                $productImageEntity = $this->em->getRepository(ProductImage::class)->findBy(['product' => $productId]);
+                foreach ($productImageEntity as $productImage) {
+                    $bills[$bill->getId()][$product->getId()][$productImage->getId()] = [
+                      'image' => $productImage->getImage()
+                    ];
+                }
             }
         }
         return $bills;
@@ -71,23 +82,61 @@ class BillService {
         return $delete;
     }
 
-    public function addBill(ParameterBag $params) {
+    public function addBill($params, FileBag $files, $imagesDirectory) {
         $bill = new Bill();
-        $bill->setUser($this->em->getReference(User::class, $params->get('user')));
-        $bill->setDate($params->get('date'));
-        $bill->setImage($params->get('image'));
-        $bill->setShop($params->get('shop'));
-        $this->em->persist($bill);
-        $this->em->flush();
+        $bill->setUser($this->em->getReference(User::class, $params['user']));
+        $bill->setName($params['name']);
+        $bill->setDate($params['date']);
+        $bill->setShop($params['shop']);
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $file = $files->get('image');
+            $fileExtension = $file->guessExtension();
+            $fileName = $this->generateUniqueFileName().'.'.$fileExtension;
+            $bill->setImage($fileName);
+            $this->em->persist($bill);
+            $this->em->flush();
+            $fullPath = $this->imageService->createPath($bill, $imagesDirectory);
+            $this->createFolder($fullPath);
+            $file->move($fullPath, $fileName);
+            $this->em->getConnection()->commit();
+        } catch (UniqueConstraintViolationException $e) {
+            $this->em->getConnection()->rollBack();
+        }
     }
 
-    public function updateBill($id, ParameterBag $params) {
+    public function updateBill($id, $params, FileBag $files, $imagesDirectory) {
         $bill = $this->em->getRepository(Bill::class)->find($id);
-        $bill->setDate($params->get('date'));
-        $bill->setImage($params->get('image'));
-        $bill->setShop($params->get('shop'));
-        $this->em->persist($bill);
-        $this->em->flush();
+        $bill->setName($params['name']);
+        $bill->setDate($params['date']);
+        $bill->setShop($params['shop']);
+        $this->em->getConnection()->beginTransaction();
+        try {
+            $fullPath = $this->imageService->createPath($bill, $imagesDirectory);
+            $this->createFolder($fullPath);
+            $this->imageService->deleteImage($bill, $fullPath);
+            $file = $files->get('image');
+            $fileExtension = $file->guessExtension();
+            $fileName = $this->generateUniqueFileName().'.'.$fileExtension;
+            $bill->setImage($fileName);
+            $this->em->persist($bill);
+            $this->em->flush();
+            $file->move($fullPath, $fileName);
+            $this->em->getConnection()->commit();
+        } catch (UniqueConstraintViolationException $e) {
+            $this->em->getConnection()->rollBack();
+        }
     }
+
+    private function generateUniqueFileName() {
+        return md5(uniqid());
+    }
+
+    private function createFolder($path) {
+        if (!is_dir($path)) {
+            mkdir($path, 0777, true);
+        }
+    }
+
 
 }
